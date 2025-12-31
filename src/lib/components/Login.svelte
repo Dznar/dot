@@ -20,9 +20,8 @@
             const data = await response.json();
 
             if (response.ok) {
-                // If login/signup is successful, reload the page to pick up the new session
-                // SvelteKit's load function will then populate currentUser store
-                window.location.href = '/'; 
+                // If login/signup is successful, redirect to dashboard
+                window.location.href = '/dashboard';
             } else {
                 errorMessage = data.message || 'Authentication failed.';
             }
