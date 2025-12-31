@@ -14,9 +14,9 @@ export async function POST({ request, cookies }) {
         let user;
         if (type === 'signup') {
             user = await serverAccount.create(sdk.ID.unique(), email, password);
-            await serverAccount.createEmailSession(email, password);
+            await serverAccount.createEmailPasswordSession(email, password);
         } else {
-            await serverAccount.createEmailSession(email, password);
+            await serverAccount.createEmailPasswordSession(email, password);
             user = await serverAccount.get();
         }
 
@@ -33,16 +33,24 @@ export async function POST({ request, cookies }) {
         return json({ success: true, user: { email: user.email, name: user.name } });
 
     } catch (error: any) {
+        console.error('Auth error details:', {
+            code: error.code,
+            status: error.status,
+            message: error.message,
+            type: error.type,
+            fullError: error
+        });
+
         if (error.code === 409) {
             return json({ success: false, message: 'A user with this email already exists.' }, { status: 409 });
         }
-        if (error.code === 401) {
+        if (error.code === 401 || error.status === 401) {
              return json({ success: false, message: 'Invalid email or password.' }, { status: 401 });
         }
         if (error.code === 400) {
             return json({ success: false, message: error.message }, { status: 400 });
         }
         console.error('Server auth error:', error);
-        return json({ success: false, message: 'An unexpected server error occurred.' }, { status: 500 });
+        return json({ success: false, message: `Server error: ${error.message || 'Unknown error'}` }, { status: 500 });
     }
 }
