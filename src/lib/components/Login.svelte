@@ -104,7 +104,7 @@
                     <button type="button" on:click={handleSignup}>Sign Up</button>
                 </div>
                 <div class="forgot-password">
-                    <a href="#" on:click|preventDefault={handleForgotPassword}>Forgot Password?</a>
+                    <button type="button" on:click={handleForgotPassword}>Forgot Password?</button>
                 </div>
             </form>
         </div>
@@ -225,14 +225,17 @@
         margin-top: 1.5rem;
     }
 
-    .forgot-password a {
+    .forgot-password button {
+        background: none;
+        border: none;
         color: #FF8C42;
-        text-decoration: none;
         font-size: 0.9rem;
+        cursor: pointer;
         transition: color 0.3s ease;
+        padding: 0;
     }
 
-    .forgot-password a:hover {
+    .forgot-password button:hover {
         color: #FF5733;
         text-decoration: underline;
     }

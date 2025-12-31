@@ -5,12 +5,11 @@ import type { Models } from 'appwrite';
 export const load: LayoutServerLoad = async ({ cookies }) => {
     const sessionId = cookies.get('AppwriteSession');
 
-    if (!sessionId) {
+    if (!sessionId || !serverAccount) {
         return { user: null };
     }
 
     try {
-        // Set the session for the server-side Appwrite client
         serverAccount.client.setSession(sessionId);
         const user: Models.User<Models.Preferences> = await serverAccount.get();
 
@@ -23,7 +22,6 @@ export const load: LayoutServerLoad = async ({ cookies }) => {
             }
         };
     } catch (error) {
-        // If the session is invalid, clear the cookie and return null
         cookies.delete('AppwriteSession', { path: '/' });
         return {
             user: null

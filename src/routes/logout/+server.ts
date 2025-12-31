@@ -3,9 +3,14 @@ import { serverAccount } from '$lib/server/appwrite';
 
 /** @type {import('./$types').RequestHandler} */
 export async function POST({ cookies }) {
+    if (!serverAccount) {
+        cookies.delete('AppwriteSession', { path: '/' });
+        return json({ success: true, message: 'Logged out successfully.' });
+    }
+
     try {
-        await serverAccount.deleteSession('current'); // Delete current session in Appwrite
-        cookies.delete('AppwriteSession', { path: '/' }); // Clear the cookie
+        await serverAccount.deleteSession('current');
+        cookies.delete('AppwriteSession', { path: '/' });
 
         return json({ success: true, message: 'Logged out successfully.' });
     } catch (error: any) {
