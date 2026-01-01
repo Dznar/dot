@@ -1,58 +1,47 @@
 <script lang="ts">
     import { currentUser } from '$lib/store';
-    import { account } from '$lib/appwrite'; // Keep for handleForgotPassword
 
     let email = '';
-    let password = '';
+    let phone = '';
     let errorMessage = '';
+    let successMessage = '';
+    let isLoading = false;
+    let isSignUp = false;
+    let linkSent = false;
 
-    async function handleAuth(type: 'login' | 'signup') {
-        errorMessage = ''; // Clear previous errors
+    async function handleMagicLinkRequest(type: 'login' | 'signup') {
+        errorMessage = '';
+        successMessage = '';
+        isLoading = true;
+
         try {
             const response = await fetch('/login', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ email, password, type })
+                body: JSON.stringify({
+                    email,
+                    phone: type === 'signup' ? phone : undefined,
+                    type
+                })
             });
 
             const data = await response.json();
 
             if (response.ok) {
-                // If login/signup is successful, redirect to dashboard
-                window.location.href = '/dashboard';
+                successMessage = `Magic link sent to ${email}. Please check your inbox!`;
+                linkSent = true;
+                email = '';
+                phone = '';
             } else {
-                errorMessage = data.message || 'Authentication failed.';
+                errorMessage = data.message || 'Failed to send magic link.';
             }
         } catch (error) {
-            console.error('Network error during authentication:', error);
+            console.error('Network error:', error);
             errorMessage = 'Network error. Please try again.';
-        }
-    }
-
-    async function handleLogin() {
-        await handleAuth('login');
-    }
-
-    async function handleSignup() {
-        await handleAuth('signup');
-    }
-
-    async function handleForgotPassword() {
-        errorMessage = ''; // Clear previous errors
-        if (!email) {
-            errorMessage = 'Please enter your email address to reset your password.';
-            return;
-        }
-        try {
-            // This still uses the client-side Appwrite for now as it doesn't involve session management directly
-            // and the server endpoint for this is more complex to set up due to email templates.
-            await account.createRecovery(email, window.location.origin + '/reset-password'); // Redirect to a SvelteKit page for password reset
-            alert('Password recovery email sent! Please check your inbox.');
-        } catch (error: any) {
-            console.error('Forgot password failed:', error);
-            errorMessage = error.message || 'Forgot password failed. Check the console for details.';
+        } finally {
+            isLoading = false;
         }
     }
 
@@ -63,8 +52,8 @@
             });
 
             if (response.ok) {
-                currentUser.set(null); // Clear client-side store
-                window.location.href = '/login'; // Redirect to login page
+                currentUser.set(null);
+                window.location.href = '/login';
             } else {
                 const data = await response.json();
                 console.error('Server logout error:', data.message);
@@ -74,6 +63,15 @@
             console.error('Network error during logout:', error);
             alert('Network error during logout. Please try again.');
         }
+    }
+
+    function toggleAuthMode() {
+        isSignUp = !isSignUp;
+        linkSent = false;
+        errorMessage = '';
+        successMessage = '';
+        email = '';
+        phone = '';
     }
 </script>
 
@@ -85,27 +83,71 @@
         </div>
     {:else}
         <div class="form-wrapper">
-            <h2>Login or Sign Up</h2>
-            <form on:submit|preventDefault>
-                <div class="form-group">
-                    <label for="email">Email</label>
-                    <input type="email" id="email" bind:value={email} placeholder="your@email.com" />
+            <h2>{isSignUp ? 'Create Account' : 'Sign In'}</h2>
+
+            {#if linkSent}
+                <div class="confirmation-message">
+                    <p>{successMessage}</p>
+                    <p class="subtext">The link will expire in 24 hours.</p>
+                    <button type="button" on:click={toggleAuthMode} class="back-btn">
+                        {isSignUp ? 'Back to Sign In' : 'Back to Sign Up'}
+                    </button>
                 </div>
-                <div class="form-group">
-                    <label for="password">Password</label>
-                    <input type="password" id="password" bind:value={password} placeholder="••••••••" />
-                </div>
-                {#if errorMessage}
-                    <p class="error-message">{errorMessage}</p>
-                {/if}
-                <div class="button-group">
-                    <button type="button" on:click={handleLogin}>Sign In</button>
-                    <button type="button" on:click={handleSignup}>Sign Up</button>
-                </div>
-                <div class="forgot-password">
-                    <button type="button" on:click={handleForgotPassword}>Forgot Password?</button>
-                </div>
-            </form>
+            {:else}
+                <form on:submit|preventDefault>
+                    <div class="form-group">
+                        <label for="email">Email</label>
+                        <input
+                            type="email"
+                            id="email"
+                            bind:value={email}
+                            placeholder="your@email.com"
+                            required
+                        />
+                    </div>
+
+                    {#if isSignUp}
+                        <div class="form-group">
+                            <label for="phone">Phone Number</label>
+                            <input
+                                type="tel"
+                                id="phone"
+                                bind:value={phone}
+                                placeholder="+1234567890"
+                                required
+                            />
+                        </div>
+                    {/if}
+
+                    {#if errorMessage}
+                        <p class="error-message">{errorMessage}</p>
+                    {/if}
+
+                    <div class="button-group">
+                        <button
+                            type="button"
+                            on:click={() => handleMagicLinkRequest(isSignUp ? 'signup' : 'login')}
+                            disabled={isLoading}
+                            class="primary-btn"
+                        >
+                            {isLoading ? 'Sending...' : (isSignUp ? 'Sign Up' : 'Sign In')}
+                        </button>
+                    </div>
+
+                    <div class="toggle-mode">
+                        <p>
+                            {isSignUp ? 'Already have an account?' : "Don't have an account?"}
+                            <button
+                                type="button"
+                                on:click={toggleAuthMode}
+                                class="toggle-btn"
+                            >
+                                {isSignUp ? 'Sign In' : 'Sign Up'}
+                            </button>
+                        </p>
+                    </div>
+                </form>
+            {/if}
         </div>
     {/if}
 </div>
@@ -219,30 +261,92 @@
         border: 2px solid #FF5733;
     }
 
-    .forgot-password {
-        text-align: center;
-        margin-top: 1.5rem;
-    }
-
-    .forgot-password button {
-        background: none;
-        border: none;
-        color: #FF8C42;
-        font-size: 0.9rem;
-        cursor: pointer;
-        transition: color 0.3s ease;
-        padding: 0;
-    }
-
-    .forgot-password button:hover {
-        color: #FF5733;
-        text-decoration: underline;
-    }
-
     .error-message {
         color: #ff5733;
         text-align: center;
         margin-top: 1rem;
         font-size: 0.9rem;
+    }
+
+    .confirmation-message {
+        text-align: center;
+        padding: 2rem 1rem;
+    }
+
+    .confirmation-message p {
+        color: #ccc;
+        margin-bottom: 1rem;
+        font-size: 1rem;
+    }
+
+    .confirmation-message .subtext {
+        color: #999;
+        font-size: 0.85rem;
+        margin-bottom: 2rem;
+    }
+
+    .back-btn {
+        background: linear-gradient(135deg, #FF5733, #FF8C42);
+        color: #fff;
+        border: none;
+        padding: 0.8rem 1.5rem;
+        border-radius: 8px;
+        font-size: 0.95rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: transform 0.3s ease;
+    }
+
+    .back-btn:hover {
+        transform: translateY(-2px);
+    }
+
+    .toggle-mode {
+        text-align: center;
+        margin-top: 1.5rem;
+    }
+
+    .toggle-mode p {
+        color: #ccc;
+        font-size: 0.95rem;
+    }
+
+    .toggle-btn {
+        background: none;
+        border: none;
+        color: #FF5733;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: underline;
+        margin-left: 0.5rem;
+        padding: 0;
+        transition: color 0.3s ease;
+    }
+
+    .toggle-btn:hover {
+        color: #FF8C42;
+    }
+
+    .primary-btn {
+        width: 100%;
+        background: linear-gradient(135deg, #FF5733, #FF8C42);
+        color: #fff;
+        border: none;
+        padding: 0.8rem;
+        border-radius: 8px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .primary-btn:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(255, 87, 51, 0.3);
+    }
+
+    .primary-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
     }
 </style>
