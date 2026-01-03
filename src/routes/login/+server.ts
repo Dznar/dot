@@ -15,11 +15,12 @@ export async function POST({ request, url }) {
         const magicLinkUrl = `${origin}/auth/magic-callback`;
 
         if (type === 'signup') {
-            await serverAccount.create(sdk.ID.unique(), email, 'placeholder-password');
+            const userId = sdk.ID.unique();
+            await serverAccount.create(userId, email, 'placeholder-password', undefined, phone);
 
-            await serverAccount.createMagicURLSession(email, magicLinkUrl);
+            await serverAccount.createEmailToken(userId, email, false, magicLinkUrl);
         } else {
-            await serverAccount.createMagicURLSession(email, magicLinkUrl);
+            await serverAccount.createMagicURLToken(email, magicLinkUrl, false);
         }
 
         return json({ success: true, message: 'Magic link sent to your email.' });
