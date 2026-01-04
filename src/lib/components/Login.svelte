@@ -2,14 +2,12 @@
     import { currentUser } from '$lib/store';
 
     let email = '';
-    let phone = '';
     let errorMessage = '';
     let successMessage = '';
     let isLoading = false;
-    let isSignUp = false;
     let linkSent = false;
 
-    async function handleMagicLinkRequest(type: 'login' | 'signup') {
+    async function handleMagicLinkRequest() {
         errorMessage = '';
         successMessage = '';
         isLoading = true;
@@ -21,9 +19,7 @@
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    email,
-                    phone: type === 'signup' ? phone : undefined,
-                    type
+                    email
                 })
             });
 
@@ -33,7 +29,6 @@
                 successMessage = `Magic link sent to ${email}. Please check your inbox!`;
                 linkSent = true;
                 email = '';
-                phone = '';
             } else {
                 errorMessage = data.message || 'Failed to send magic link.';
             }
@@ -65,13 +60,11 @@
         }
     }
 
-    function toggleAuthMode() {
-        isSignUp = !isSignUp;
+    function resetForm() {
         linkSent = false;
         errorMessage = '';
         successMessage = '';
         email = '';
-        phone = '';
     }
 </script>
 
@@ -83,14 +76,14 @@
         </div>
     {:else}
         <div class="form-wrapper">
-            <h2>{isSignUp ? 'Create Account' : 'Sign In'}</h2>
+            <h2>Sign In or Create Account</h2>
 
             {#if linkSent}
                 <div class="confirmation-message">
                     <p>{successMessage}</p>
                     <p class="subtext">The link will expire in 24 hours.</p>
-                    <button type="button" on:click={toggleAuthMode} class="back-btn">
-                        {isSignUp ? 'Back to Sign In' : 'Back to Sign Up'}
+                    <button type="button" on:click={resetForm} class="back-btn">
+                        Send Another Link
                     </button>
                 </div>
             {:else}
@@ -106,19 +99,6 @@
                         />
                     </div>
 
-                    {#if isSignUp}
-                        <div class="form-group">
-                            <label for="phone">Phone Number</label>
-                            <input
-                                type="tel"
-                                id="phone"
-                                bind:value={phone}
-                                placeholder="+1234567890"
-                                required
-                            />
-                        </div>
-                    {/if}
-
                     {#if errorMessage}
                         <p class="error-message">{errorMessage}</p>
                     {/if}
@@ -126,25 +106,12 @@
                     <div class="button-group">
                         <button
                             type="button"
-                            on:click={() => handleMagicLinkRequest(isSignUp ? 'signup' : 'login')}
+                            on:click={handleMagicLinkRequest}
                             disabled={isLoading}
                             class="primary-btn"
                         >
-                            {isLoading ? 'Sending...' : (isSignUp ? 'Sign Up' : 'Sign In')}
+                            {isLoading ? 'Sending...' : 'Send Magic Link'}
                         </button>
-                    </div>
-
-                    <div class="toggle-mode">
-                        <p>
-                            {isSignUp ? 'Already have an account?' : "Don't have an account?"}
-                            <button
-                                type="button"
-                                on:click={toggleAuthMode}
-                                class="toggle-btn"
-                            >
-                                {isSignUp ? 'Sign In' : 'Sign Up'}
-                            </button>
-                        </p>
                     </div>
                 </form>
             {/if}
@@ -254,12 +221,6 @@
         transform: translateY(-2px);
         box-shadow: 0 5px 15px rgba(255, 87, 51, 0.3);
     }
-    
-    /* Secondary button style */
-    .button-group button:last-child {
-        background: none;
-        border: 2px solid #FF5733;
-    }
 
     .error-message {
         color: #ff5733;
@@ -299,32 +260,6 @@
 
     .back-btn:hover {
         transform: translateY(-2px);
-    }
-
-    .toggle-mode {
-        text-align: center;
-        margin-top: 1.5rem;
-    }
-
-    .toggle-mode p {
-        color: #ccc;
-        font-size: 0.95rem;
-    }
-
-    .toggle-btn {
-        background: none;
-        border: none;
-        color: #FF5733;
-        font-weight: 600;
-        cursor: pointer;
-        text-decoration: underline;
-        margin-left: 0.5rem;
-        padding: 0;
-        transition: color 0.3s ease;
-    }
-
-    .toggle-btn:hover {
-        color: #FF8C42;
     }
 
     .primary-btn {
