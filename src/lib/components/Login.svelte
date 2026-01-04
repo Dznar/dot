@@ -2,12 +2,13 @@
     import { currentUser } from '$lib/store';
 
     let email = '';
+    let code = '';
     let errorMessage = '';
     let successMessage = '';
     let isLoading = false;
-    let linkSent = false;
+    let codeSent = false;
 
-    async function handleMagicLinkRequest() {
+    async function handleSendCode() {
         errorMessage = '';
         successMessage = '';
         isLoading = true;
@@ -18,19 +19,48 @@
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({
-                    email
-                })
+                body: JSON.stringify({ email })
             });
 
             const data = await response.json();
 
             if (response.ok) {
-                successMessage = `Magic link sent to ${email}. Please check your inbox!`;
-                linkSent = true;
-                email = '';
+                successMessage = data.message;
+                codeSent = true;
             } else {
-                errorMessage = data.message || 'Failed to send magic link.';
+                errorMessage = data.message || 'Failed to send code.';
+            }
+        } catch (error) {
+            console.error('Network error:', error);
+            errorMessage = 'Network error. Please try again.';
+        } finally {
+            isLoading = false;
+        }
+    }
+
+    async function handleVerifyCode() {
+        errorMessage = '';
+        successMessage = '';
+        isLoading = true;
+
+        try {
+            const response = await fetch('/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ email, code })
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                successMessage = 'Logged in successfully! Redirecting...';
+                setTimeout(() => {
+                    window.location.href = '/dashboard';
+                }, 1000);
+            } else {
+                errorMessage = data.message || 'Invalid code. Please try again.';
             }
         } catch (error) {
             console.error('Network error:', error);
@@ -61,10 +91,11 @@
     }
 
     function resetForm() {
-        linkSent = false;
+        codeSent = false;
         errorMessage = '';
         successMessage = '';
         email = '';
+        code = '';
     }
 </script>
 
@@ -78,18 +109,48 @@
         <div class="form-wrapper">
             <h2>Sign In or Create Account</h2>
 
-            {#if linkSent}
-                <div class="confirmation-message">
-                    <p>{successMessage}</p>
-                    <p class="subtext">The link will expire in 24 hours.</p>
-                    <button type="button" on:click={resetForm} class="back-btn">
-                        Send Another Link
-                    </button>
-                </div>
+            {#if codeSent}
+                <form on:submit|preventDefault>
+                    <p class="step-info">Enter the code sent to {email}</p>
+                    <div class="form-group">
+                        <label for="code">Verification Code</label>
+                        <input
+                            type="text"
+                            id="code"
+                            bind:value={code}
+                            placeholder="Enter 6-digit code"
+                            required
+                            maxlength="6"
+                        />
+                    </div>
+
+                    {#if errorMessage}
+                        <p class="error-message">{errorMessage}</p>
+                    {/if}
+
+                    <div class="button-group">
+                        <button
+                            type="button"
+                            on:click={handleVerifyCode}
+                            disabled={isLoading || code.length < 6}
+                            class="primary-btn"
+                        >
+                            {isLoading ? 'Verifying...' : 'Verify Code'}
+                        </button>
+                        <button
+                            type="button"
+                            on:click={resetForm}
+                            disabled={isLoading}
+                            class="secondary-btn"
+                        >
+                            Back
+                        </button>
+                    </div>
+                </form>
             {:else}
                 <form on:submit|preventDefault>
                     <div class="form-group">
-                        <label for="email">Email</label>
+                        <label for="email">Email Address</label>
                         <input
                             type="email"
                             id="email"
@@ -106,11 +167,11 @@
                     <div class="button-group">
                         <button
                             type="button"
-                            on:click={handleMagicLinkRequest}
+                            on:click={handleSendCode}
                             disabled={isLoading}
                             class="primary-btn"
                         >
-                            {isLoading ? 'Sending...' : 'Send Magic Link'}
+                            {isLoading ? 'Sending...' : 'Send Code'}
                         </button>
                     </div>
                 </form>
@@ -229,37 +290,11 @@
         font-size: 0.9rem;
     }
 
-    .confirmation-message {
-        text-align: center;
-        padding: 2rem 1rem;
-    }
-
-    .confirmation-message p {
+    .step-info {
         color: #ccc;
-        margin-bottom: 1rem;
-        font-size: 1rem;
-    }
-
-    .confirmation-message .subtext {
-        color: #999;
-        font-size: 0.85rem;
-        margin-bottom: 2rem;
-    }
-
-    .back-btn {
-        background: linear-gradient(135deg, #FF5733, #FF8C42);
-        color: #fff;
-        border: none;
-        padding: 0.8rem 1.5rem;
-        border-radius: 8px;
+        text-align: center;
+        margin-bottom: 1.5rem;
         font-size: 0.95rem;
-        font-weight: 600;
-        cursor: pointer;
-        transition: transform 0.3s ease;
-    }
-
-    .back-btn:hover {
-        transform: translateY(-2px);
     }
 
     .primary-btn {
@@ -281,6 +316,29 @@
     }
 
     .primary-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    .secondary-btn {
+        flex-grow: 1;
+        background: none;
+        color: #FF5733;
+        border: 2px solid #FF5733;
+        padding: 0.8rem;
+        border-radius: 8px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .secondary-btn:hover:not(:disabled) {
+        background: rgba(255, 87, 51, 0.1);
+        transform: translateY(-2px);
+    }
+
+    .secondary-btn:disabled {
         opacity: 0.6;
         cursor: not-allowed;
     }
